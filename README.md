@@ -1,45 +1,63 @@
-# Rebuilding the Social Engine (DATA VORTEX — Round 1, Phase 1)
-### SRM Institute of Science and Technology | AARUUSH '26 National Techno-Management Fest
-
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Status](https://img.shields.io/badge/Pipeline-100%25%20Restored-brightgreen.svg)]()
-[![License](https://img.shields.io/badge/License-MIT-purple.svg)]()
+# Social Engine Intake Pipeline Restoration (DATA VORTEX — Round 1, Phase 1)
+**Event**: DATA VORTEX (AARUUSH '26, SRMIST)  
+**Task**: Restore corrupted intake stream & perform exploratory data analysis  
+**Deliverables**: Cleaned datasets (CSV/JSON), reproducible pipeline, EDA report, and Jupyter notebook  
 
 ---
 
-## 🎯 Phase 1 Overview
+## 1. Pipeline Failure & Restoration Breakdown
 
-This repository contains the complete, reproducible **Round 1 (Phase 1)** submission for the **DATA VORTEX** competition at **AARUUSH '26** (SRMIST).
+Forensic audit of `Social_Engine_Posts_Corrupted.csv` (12,360 rows) against `Social_Engine_Users.csv` (1,500 rows) identified five distinct data corruptions:
 
-The challenge requires participants to take on the role of data engineers restoring the foundation of a corrupted social media data intake pipeline, fixing data quality issues without arbitrary fabrication, and performing deep exploratory data analysis.
+```
++-----------------------------------------------------------------------------------------------+
+|                                    FAILURE MODE AUDIT                                         |
++------------------------------+---------------+------------------------------------------------+
+| Corrupted Field              | Count         | Applied Fix                                    |
++------------------------------+---------------+------------------------------------------------+
+| Duplicate Records            | 360 rows      | Exact-row deduplication                        |
+| Mixed Timestamps             | 8,738 rows    | Regex dispatching to UTC ISO-8601              |
+| Inverted Likes (Negative)    | 509 rows      | abs(likes) (KS-test verified sign-bit flip)   |
+| Missing Likes                | 1,814 rows    | Platform-stratified median imputation          |
+| Missing Platforms            | 1,784 rows    | Random Forest text/metric classifier + Unknown |
+| Pseudo-Null Text Strings     | 72 rows       | Neutralized 'NULL\n\n', 'NULL&amp;', 'NULLé'   |
+| Unescaped HTML Entities      | 974 rows      | Decoded entities (&amp;) and stripped tags     |
++------------------------------+---------------+------------------------------------------------+
+```
+
+### Key Numbers
+- **Post Math**: $12,360 \text{ raw posts} - 360 \text{ duplicates} = 12,000 \text{ clean posts}$.
+- **User Distribution**: Exactly $12,000 / 1,500 = 8.0$ posts per user across all 1,500 registered accounts. Zero orphaned records.
+- **Negative Likes Statistical Proof**: Two-sample Kolmogorov-Smirnov test between `abs(neg_likes)` ($n=509$) and `pos_likes` ($n=9,676$) yields $\text{KS}=0.0312, p=0.7042 > 0.05$. The distributions are identical, proving an integer sign-bit flip rather than penalty scores.
+- **Audit Provenance**: Every imputed or modified value retains an audit trail column: `is_likes_sign_corrected`, `is_likes_imputed`, `is_platform_imputed`.
 
 ---
 
-## 📂 Phase 1 Submission Contents
+## 2. Repository Layout
 
 ```
 .
-├── RULEBOOK  DATA VORTEX round 1.pdf           # Official competition rulebook & rubrics
-├── README.md                                   # Project documentation & reproduction guide
+├── RULEBOOK  DATA VORTEX round 1.pdf           # Competition rules & rubric
+├── README.md                                   # This technical guide
 │
-├── Social_Engine_Posts_Corrupted.csv           # Original raw corrupted posts intake (12,360 rows)
-├── Social_Engine_Users.csv                     # Original users reference table (1,500 rows)
-├── Social_Engine_Posts_Cleaned.csv             # Restored & cleaned posts (12,000 unique records)
-├── Social_Engine_Posts_Cleaned.json            # Restored posts in JSON format
-├── Social_Engine_Users_Normalized.csv          # Normalized users reference table
+├── Social_Engine_Posts_Cleaned.csv             # 12,000 clean posts (22 columns, 0 nulls)
+├── Social_Engine_Posts_Cleaned.json            # Clean posts in JSON format
+├── Social_Engine_Users_Normalized.csv          # 1,500 users reference table
+├── Social_Engine_Posts_Corrupted.csv           # Raw corrupted input (for full reproduction)
+├── Social_Engine_Users.csv                     # Raw users input
 │
 ├── notebooks/
-│   └── Social_Engine_Phase1_Pipeline_EDA.ipynb # Master interactive EDA & cleaning notebook (29 cells)
+│   └── Social_Engine_Phase1_Pipeline_EDA.ipynb # 29-cell notebook with code + analysis
 │
 ├── scripts/
-│   ├── clean_social_engine.py                  # End-to-end data restoration pipeline
-│   └── generate_eda_figures.py                 # Publication-grade visual asset generator
+│   ├── clean_social_engine.py                  # End-to-end cleaning script
+│   └── generate_eda_figures.py                 # Generates 6 high-res (300 DPI) figures
 │
 └── reports/
-    ├── Phase_1_EDA_Report.md                   # Formal Phase 1 Executive Report (Anti-AI-Slop)
+    ├── Phase_1_EDA_Report.md                   # Technical EDA report
     ├── Phase_1_EDA_Report.html                 # Self-contained printable HTML/PDF report
-    ├── cleaning_audit_summary.json             # Automated provenance audit log
-    └── figures/                                # High-resolution EDA figures (300 DPI)
+    ├── cleaning_audit_summary.json             # Provenance audit log
+    └── figures/                                # Saved charts (PNG format)
         ├── 01_intake_corruption_breakdown.png
         ├── 02_engagement_distribution_by_platform.png
         ├── 03_brand_sentiment_profile.png
@@ -50,45 +68,29 @@ The challenge requires participants to take on the role of data engineers restor
 
 ---
 
-## 🛠️ Data Restoration Summary
+## 3. How to Reproduce
 
-| Failure Mode | Raw Intake | Restored Target | Engineering Treatment & Proof |
-| :--- | :--- | :--- | :--- |
-| **Stream Duplication** | 12,360 rows | 12,000 rows | Dropped 360 retry-storm duplicates. Exactly 8.0 posts per user across 1,500 users ($12,000 / 1,500 = 8.0$). |
-| **Timestamp Mismatch** | 8,738 unparsed | 12,000 UTC ISO-8601 | Regex parser unifying Unix Epoch seconds, European DD-MM-YYYY, and ISO strings into `YYYY-MM-DD HH:MM:SS` (0 NaT). |
-| **Negative Likes** | 509 negative values | 509 corrected values | Inverted via `abs(likes)`. Kolmogorov-Smirnov test ($\text{KS}=0.0312, p=0.7042 > 0.05$) proves sign-bit flip. |
-| **Missing Likes** | 1,814 missing (`NaN`) | 1,814 imputed | Platform-stratified median imputation + tracked via audit flag `is_likes_imputed = 1`. |
-| **Missing Platforms** | 1,784 missing (`NaN`) | 1,784 resolved | Random Forest prediction on TF-IDF text features and engagement + tracked via `is_platform_imputed = 1`. |
-| **Corrupted String Noise** | 72 pseudo-nulls & 974 entities | Fully sanitized text | Neutralized `NULL\n\n`, `NULL&amp;`, `NULLé`, `NULL<div>`, `NULL<br>`; unescaped HTML entities. |
-| **Foreign Key Integrity** | 12,000 posts | 100% matched | 0 orphaned records against `Social_Engine_Users.csv`. |
-
----
-
-## 🚀 Reproduction in 2 Commands
-
-To reproduce the entire cleaning pipeline and re-generate all visual figures from scratch:
+Dependencies: Python 3.10+, `pandas`, `numpy`, `scipy`, `scikit-learn`, `matplotlib`, `seaborn`.
 
 ```bash
-# 1. Run the restoration pipeline
+# 1. Run the cleaning pipeline (takes ~5 seconds)
 python scripts/clean_social_engine.py
 
-# 2. Re-generate all high-resolution figures (300 DPI)
+# 2. Re-generate all high-resolution figures
 python scripts/generate_eda_figures.py
-```
 
-To run the interactive Jupyter Notebook:
-```bash
+# 3. Open the interactive Jupyter Notebook
 jupyter notebook notebooks/Social_Engine_Phase1_Pipeline_EDA.ipynb
 ```
 
 ---
 
-## 📊 Key Findings from EDA
+## 4. Key EDA Findings
 
-1. **Platform Independence**: Interactions across Instagram, YouTube, Facebook, Reddit, and Twitter show uniform engagement baselines (median likes ~2,500, shares ~1,000, comments ~500).
-2. **Brand Reception**: Lexical sentiment extraction across 9 major global brands (*Nike, Adidas, Apple, Samsung, Toyota, Coca-Cola, Pepsi, Amazon, Google*) reveals consistent customer sentiment: ~32% positive, ~55% neutral evaluation, and ~13% negative (predominantly delivery and hardware issues).
-3. **Continuous Global Ingestion**: Temporal heatmaps show steady round-the-clock activity (60–85 posts/hour/day) across 33 international cities and 10 languages.
-4. **Interaction Orthogonality ($r \approx 0.00$)**: Likes, shares, and comments do not correlate with each other, and follower count has near-zero linear correlation ($r = +0.0013$) with per-post engagement, proving an algorithmic content-driven discovery model.
-
----
-*Developed for DATA VORTEX Round 1 (Phase 1) — SRM Institute of Science and Technology.*
+1. **Platform Baselines**: Engagement distributions across Instagram, YouTube, Facebook, Reddit, and Twitter are statistically identical:
+   - Likes: Uniformly distributed between 1 and 5,000 (mean ~2,500).
+   - Shares: Uniformly distributed between 0 and 2,000 (mean ~1,000).
+   - Comments: Uniformly distributed between 0 and 1,000 (mean ~500).
+2. **Brand Mentions & Sentiment**: 9 enterprise brands were extracted (*Nike, Adidas, Apple, Samsung, Toyota, Coca-Cola, Pepsi, Amazon, Google*). Customer sentiment across all brands hovers at ~32% positive, ~55% neutral, and ~13% negative (driven by delivery and hardware issues).
+3. **Temporal Ingestion**: Hourly activity heatmaps show continuous round-the-clock throughput (60–85 posts/hour/day) across 33 global cities and 10 languages, with zero offline maintenance gaps.
+4. **Interaction Orthogonality ($r \approx 0.00$)**: Pearson correlation between interaction channels is near zero (likes vs shares: $r = -0.0012$; likes vs comments: $r = +0.0096$; shares vs comments: $r = +0.0244$). Follower count has near-zero linear correlation ($r = +0.0013$) with per-post engagement, reflecting a meritocratic content recommendation engine.
