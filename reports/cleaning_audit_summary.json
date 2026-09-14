@@ -1,0 +1,63 @@
+{
+  "raw_posts_count": 12360,
+  "raw_users_count": 1500,
+  "actions": [
+    {
+      "stage": "Deduplication",
+      "description": "Removed identical duplicate post rows",
+      "records_affected": 360,
+      "post_clean_count": 12000
+    },
+    {
+      "stage": "Timestamp Standardization",
+      "description": "Unified Unix epoch, DD-MM-YYYY, and ISO formats into ISO-8601 UTC",
+      "date_range": {
+        "min": "2024-05-01 00:00:00",
+        "max": "2025-04-30 21:57:10"
+      }
+    },
+    {
+      "stage": "Likes Restoration",
+      "negative_likes_repaired": 509,
+      "missing_likes_imputed": 1814,
+      "imputation_baseline": {
+        "Facebook": 2573.0,
+        "Instagram": 2496.0,
+        "Reddit": 2494.5,
+        "Twitter": 2438.0,
+        "YouTube": 2585.0
+      }
+    },
+    {
+      "stage": "Text Sanitization",
+      "pseudo_nulls_neutralized": 72,
+      "clean_texts_available": 10240,
+      "brand_distribution": {
+        "Unknown / Generic": 1760,
+        "Adidas": 1070,
+        "Other / Generic": 1056,
+        "Nike": 1046,
+        "Samsung": 1045,
+        "Pepsi": 1027,
+        "Apple": 1023,
+        "Google": 1023,
+        "Toyota": 993,
+        "Amazon": 980,
+        "Coca-Cola": 977
+      },
+      "sentiment_distribution": {
+        "Neutral": 7514,
+        "Positive": 2921,
+        "Negative": 1565
+      }
+    }
+  ],
+  "clean_posts_count": 12000,
+  "clean_users_count": 1500,
+  "summary_metrics": {
+    "mean_likes": 2495.38375,
+    "mean_shares": 1007.1671666666666,
+    "mean_comments": 504.34575,
+    "mean_total_engagement": 4006.8966666666665
+  }
+}

@@ -1,0 +1,18 @@
+# Ignore Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# Ignore Phase 2 files (to keep repo strictly Phase 1 focused as requested)
+sql/
+social_engine.db
+reports/Phase_2_SQL_Insight_Report.md
+scripts/run_sql_analysis.py
+scripts/convert_report_to_html.py
+scripts/create_notebook.py
+
+# Ignore agent and IDE metadata
+.agents/
+.vscode/
+.idea/
